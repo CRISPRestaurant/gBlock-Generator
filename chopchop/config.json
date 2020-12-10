@@ -1,0 +1,11 @@
+{
+  "PATH": {
+    "PRIMER3": "chopchop/primer3_core",
+    "BOWTIE": "chopchop/bowtie/bowtie",
+    "TWOBITTOFA": "chopchop/twoBitToFa",
+    "TWOBIT_INDEX_DIR": "CHOPCHOP_Necessary_Genetic_Data/2Bit_Genes",
+    "BOWTIE_INDEX_DIR": "CHOPCHOP_Necessary_Genetic_Data/EBWT_Genes",
+    "GENE_TABLE_INDEX_DIR": "CHOPCHOP_Necessary_Genetic_Data/Gene_Tables"
+  },
+  "THREADS": 1
+}
