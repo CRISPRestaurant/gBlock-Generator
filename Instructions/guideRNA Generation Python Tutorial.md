@@ -11,7 +11,7 @@ virtualenv --python C:\Path\To\Python2\python.exe python2-venv
 cd python2-venv\Scripts
 activate
 ```
-2. Download our more structured [CHOPCHOP-containing folder](https://github.com/CRISPRestaurant/guideRNA).
+2. Download our more structured [CHOPCHOP-containing folder](https://github.com/CRISPRestaurant/gBlock-Generator/tree/master/chopchop).
 
 3. Obtain the ```.gene_table``` file for your organism by visiting [this site](http://genome.ucsc.edu/cgi-bin/hgTables?hgsid=859909031_IKpLA1AwyQ5WqaEjCJXPycmLjRkz&clade=other&org=0&db=0&hgta_group=genes&hgta_track=refGene&hgta_table=refFlat&hgta_regionType=genome&position=&hgta_outputType=primaryTable&hgta_outFileName=), selecting the CHOPCHOP API's recommended inputs below, and clicking "get output".
 
@@ -27,11 +27,11 @@ Option | Remember Input for Later
 --- | ---
 assembly | Month and Year
 
-4. Right click the new page, click "Save Page As", navigate to wherever your ```Gene_Table``` [folder](https://github.com/CRISPRestaurant/guideRNA/tree/master/Gene_Tables) is,and type ```<your organism name>.gene_table``` into the Filename input, and save.
+4. Right click the new page, click "Save Page As", navigate to wherever your ```Gene_Table``` [folder](https://github.com/CRISPRestaurant/gBlock-Generator/tree/master/CHOPCHOP_Necessary_Genetic_Data/Gene_Tables) is,and type ```<your organism name>.gene_table``` into the Filename input, and save.
 
 5. Obtain the ```.2bit``` file for your organism by visiting [this site](https://hgdownload.soe.ucsc.edu/downloads.html) and looking for your species and the exact same assembly month and year as what you had inputed for obtaining the ```.gene_table```. Then navigate to ```Annotations``` and then ```Fileserver (bigBed, maf, fa, etc) annotations Also see Data Access```.
 
-6. Locate the ```.2bit``` file and save it into the ```2Bit_Genes``` [folder](https://github.com/CRISPRestaurant/guideRNA/tree/master/2Bit_Genes).
+6. Locate the ```.2bit``` file and save it into the ```2Bit_Genes``` [folder](https://github.com/CRISPRestaurant/gBlock-Generator/tree/master/CHOPCHOP_Necessary_Genetic_Data/2Bit_Genes).
 
 7. Obtain your EBWT files in two manners depending on if you are running Windows or Linux.
 
@@ -44,7 +44,7 @@ cd chopchop
 ```
 Move all your .ebwt files into ```EBWT_Genes```
 
-For Windows go [here](https://chopchop.cbu.uib.no/genomes/) and download all .ebwt files concerning your organism into the ```EBWT_Genes``` [folder](https://github.com/CRISPRestaurant/guideRNA/tree/master/EBWT_Genes)
+For Windows go [here](https://chopchop.cbu.uib.no/genomes/) and download all .ebwt files concerning your organism into the ```EBWT_Genes``` [folder](https://github.com/CRISPRestaurant/gBlock-Generator/tree/master/CHOPCHOP_Necessary_Genetic_Data/EBWT_Genes)
 
 8. Run the CHOPCHOP program to design the gRNAs by running the command below.
 
