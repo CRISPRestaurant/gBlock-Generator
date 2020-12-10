@@ -2,4 +2,4 @@
 
 ## Buffet
 
-- [Guide to calculate guideRNAs using CHOPCHOP and Python 2.7](https://github.com/CRISPRestaurant/guideRNA/blob/master/Instructions/guideRNA%20Python%20Assembly.md)
+- [Guide to calculate guideRNAs using CHOPCHOP and Python 2.7](https://github.com/CRISPRestaurant/gBlock-Generator/blob/master/Instructions/guideRNA%20Generation%20Python%20Tutorial.md)
