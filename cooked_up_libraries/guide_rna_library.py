@@ -60,6 +60,7 @@ def obtainGuideRNAsOfflineCHOPCHOP(organism_name, target_gene, guide_rna_results
 
     return command_output_split
 
+# Obtains guideRNAs using Selenium and CHOPCHOP website
 def obtainGuideRNAsOnlineCHOPCHOP(organism_name, target_gene, guide_rna_results_storage_folder, time_allotment = 120, selenium_driver = "chromedriver/chromedriver"):
     # Removes all previous off target data downloaded into the off_target_site_destination_folder
     organism_folder = "%s/%s" % (guide_rna_results_storage_folder, organism_name)
@@ -81,6 +82,7 @@ def obtainGuideRNAsOnlineCHOPCHOP(organism_name, target_gene, guide_rna_results_
 
     driver.get("https://chopchop.cbu.uib.no/")
 
+    # Inputs organism name by finding it among selection and inputs gene name into respective input field
     target_gene_element = driver.find_element_by_xpath("//*[@id=\"geneInput\"]")
     target_species_element = Select(driver.find_element_by_xpath("//*[@id=\"genomeSelect\"]"))
 
@@ -106,6 +108,7 @@ def obtainGuideRNAsOnlineCHOPCHOP(organism_name, target_gene, guide_rna_results_
     target_species_element.select_by_value(target_species_value_matched_with_input)
 
     guide_rna_submit_button = driver.find_element_by_xpath("//*[@id=\"searchRequest\"]")
+    # Submits form
     guide_rna_submit_button.click()
 
     try:
@@ -115,6 +118,7 @@ def obtainGuideRNAsOnlineCHOPCHOP(organism_name, target_gene, guide_rna_results_
         guide_number = 1
         finished = False
 
+        # Adds links of each guideRNA to obtain off target information
         off_target_site_links = []
         while not finished:
             try:
@@ -134,6 +138,8 @@ def obtainGuideRNAsOnlineCHOPCHOP(organism_name, target_gene, guide_rna_results_
 
             guide_number += 1
 
+        # Shifts through all guideRNA sites to obtain off target information and save it into
+        # guide_rna_results_storage_folder
         guide_number = 1
         for off_target_site in off_target_site_links:
             driver.get(off_target_site)
@@ -196,6 +202,7 @@ def obtainGuideRNAsOnlineCHOPCHOP(organism_name, target_gene, guide_rna_results_
 
     return output
 
+# Obtains archive guideRNA data and returns False if not found or corrupted
 def obtainGuideRNAsAncientRunCHOPCHOP(organism, gene, guide_rna_results_storage_folder):
     if os.path.isdir("%s/%s/%s" % (guide_rna_results_storage_folder, organism, gene)):
         if os.path.isfile("%s/%s/%s/guideRNAs.csv" % (guide_rna_results_storage_folder, organism, gene)):
@@ -206,6 +213,7 @@ def obtainGuideRNAsAncientRunCHOPCHOP(organism, gene, guide_rna_results_storage_
     else:
         return False
 
+# Obtains age of guideRNA data and returns False if not found or corrupted
 def obtainAgeOfSavedGuideRNAsinDays(organism, gene, guide_rna_results_storage_folder):
     if os.path.isdir("%s/%s/%s" % (guide_rna_results_storage_folder, organism, gene)):
         if os.path.isfile("%s/%s/%s/Knockout Output Summary.txt" % (guide_rna_results_storage_folder, organism, gene)):
@@ -224,6 +232,7 @@ def obtainAgeOfSavedGuideRNAsinDays(organism, gene, guide_rna_results_storage_fo
     else:
         return False
 
+# Obtains guideRNA data if archived and younger than acceptable_age days, else fetches it from the CHOPCHOP website
 def obtainGuideRNAsSavedOrOnlineCHOPCHOP(organism, gene, guide_rna_results_storage_folder, time_allotment = 120, selenium_driver = "chromedriver/chromedriver", acceptable_age = sys.maxsize):
     saved_guide_rnas = obtainGuideRNAsAncientRunCHOPCHOP(organism, gene, guide_rna_results_storage_folder)
 
