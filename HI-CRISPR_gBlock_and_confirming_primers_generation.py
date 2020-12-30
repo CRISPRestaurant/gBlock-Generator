@@ -25,8 +25,8 @@ def obtainEarlierORFPriority(position):
 
 # Assigns a higher priority to guides that do not have off-target
 # sites
-def obtainOffTargetSitePriority(output_folder, output_number):
-    file = open(output_folder + "/" + output_number + ".offtargets", "r")
+def obtainOffTargetSitePriority(off_target_output_folder, output_number):
+    file = open("%s/%s.offtargets" % (off_target_output_folder, output_number), "r")
 
     first_line = True
 
@@ -49,7 +49,7 @@ def obtainOffTargetSitePriority(output_folder, output_number):
 # and position, first sequence sense or anti-sense, . . . more metadata . . .]]
 
 # output_folder is where temp files regarding offtarget sites for the guideRNA will find its home
-def prioritize_guide_RNAs(sequences, output_folder):
+def prioritize_guide_RNAs(sequences, off_target_output_folder):
     # priority_dict is contained as {guideRNA: priority_value}
     priority_dict = {}
     sequence_properties = {}
@@ -63,7 +63,7 @@ def prioritize_guide_RNAs(sequences, output_folder):
         gc_priority = dna_properties.obtainGCPriority(sequence[1])
         last_purine_priority = dna_properties.obtainLastPurinePriority(sequence[1])
         earlier_orf_priority = obtainEarlierORFPriority(position)
-        off_target_site_priority = obtainOffTargetSitePriority(output_folder, sequence[0])
+        off_target_site_priority = obtainOffTargetSitePriority(off_target_output_folder, sequence[0])
 
         priority_value = gc_priority * last_purine_priority * earlier_orf_priority * off_target_site_priority
 
@@ -153,7 +153,7 @@ def obtainPrimers(target, left_primer_length, right_primer_start, right_primer_l
 # Obtains HI-CRISPR gBlock that does not contain the BsaI endpoints and only contains the
 # left homology arm, stop codon, SbfI, right homology arm, and guideRNA
 # Also obtains
-def obtaingBlockCandidatesWithoutBsaISite(organism, gene, gene_table_for_organism):
+def obtaingBlockCandidatesWithoutBsaISite(organism, gene, gene_table_for_organism, guide_rna_results_storage_folder, chopchop_dir, online):
     output = []
 
     # Very crude processing of primer information
@@ -163,7 +163,12 @@ def obtaingBlockCandidatesWithoutBsaISite(organism, gene, gene_table_for_organis
 
     SbfI = "CCTGCAGG"
 
-    guide_rnas = guide_rna_library.obtainGuideRNAs(organism, gene)
+    guide_rnas = []
+    if online:
+        guide_rnas = guide_rna_library.obtainGuideRNAsSavedOrOnlineCHOPCHOP(organism, gene, guide_rna_results_storage_folder, time_allotment = 6000)
+    else:
+        guide_rnas = guide_rna_library.obtainGuideRNAsOfflineCHOPCHOP(organism, gene, guide_rna_results_storage_folder)
+
     organism_fasta = fasta_library.processOrganismFasta(organism)
 
     first_filter_passed_guideRNAs = []
@@ -181,11 +186,18 @@ def obtaingBlockCandidatesWithoutBsaISite(organism, gene, gene_table_for_organis
             # being the first character in a string
             position = int(full_chromosome[1]) - 1
 
-            left_hr = organism_fasta[chromosome][(position - 50): position]
+            left_hr_start_position = position - 50
+            left_hr_end_position = position - 1
+
+            left_hr = organism_fasta[chromosome][left_hr_start_position: left_hr_end_position]
             guide_plus_pam = guide_rna[1]
             guide = guide_plus_pam[0: (len(guide_plus_pam) - 3)]
             one_extra = organism_fasta[chromosome][position + len(guide_plus_pam)]
-            right_hr = organism_fasta[chromosome][(position + len(guide_plus_pam) + 1): (position + len(guide_plus_pam) + 51)]
+
+            right_hr_start_position = position + len(guide_plus_pam) + 1
+            right_hr_end_position = position + len(guide_plus_pam) + 51
+
+            right_hr = organism_fasta[chromosome][right_hr_start_position: right_hr_end_position]
 
             # Obtaining string to obtain primers
             start_position_first_for_primer = position - 50
@@ -226,7 +238,7 @@ def obtaingBlockCandidatesWithoutBsaISite(organism, gene, gene_table_for_organis
                 guide_rna_to_assembled_sequence_dict[guide_rna[1]] = [left_hr, right_hr]
 
 
-    ranked_guideRNAs = prioritize_guide_RNAs(first_filter_passed_guideRNAs, "chopchop/temp")
+    ranked_guideRNAs = prioritize_guide_RNAs(first_filter_passed_guideRNAs, "%s/%s/%s/Off Targets" % (guide_rna_results_storage_folder, organism, gene))
     ## END SECTION
 
     # Chooses four highest ranked guideRNAs
@@ -274,7 +286,7 @@ def obtaingBlockCandidatesWithoutBsaISite(organism, gene, gene_table_for_organis
 
     return [output, primer_target_final_round]
 
-def obtaingBlocks(organism, gene_list, plasmid, gene_table_for_organism):
+def obtaingBlocks(organism, gene_list, plasmid, gene_table_for_organism, guide_rna_results_storage_folder, chopchop_dir, online):
     # Obtains two sets of four nucleotides needed to glue the ends of the gBlock onto the plasmid
     start_end_BsaI_sites = restriction_enzymes.findBsaISites(plasmid)
     # Pair of start and end nucleotides for BsaI ligation in order of gBlock
@@ -319,7 +331,7 @@ def obtaingBlocks(organism, gene_list, plasmid, gene_table_for_organism):
 
     counter = 1
     for i in range(len(gene_list)):
-        gBlocks_raw = obtaingBlockCandidatesWithoutBsaISite(organism, gene_list[i], gene_table_for_organism)
+        gBlocks_raw = obtaingBlockCandidatesWithoutBsaISite(organism, gene_list[i], gene_table_for_organism, guide_rna_results_storage_folder, chopchop_dir, online)
         gBlocks_without_BsaI = gBlocks_raw[0]
         primer_output = gBlocks_raw[1]
 
@@ -361,7 +373,7 @@ gene_table_for_organism = gene_table.obtainGeneTableInfo(organism)
 plasmid = "pCRCT"
 
 gene_list = ["YDR210W", "YOL031C", "YPR030W"]
-gBlocks_and_primers = obtaingBlocks(organism, gene_list, plasmid, gene_table_for_organism)
+gBlocks_and_primers = obtaingBlocks(organism, gene_list, plasmid, gene_table_for_organism, "GuideRNA Archives", "chopchop", True)
 file_name = "_".join(gene_list)
 
 file = open("Test Output Garbage Dump/HI-CRISPR Knockout/" + file_name + ".txt", "w")
