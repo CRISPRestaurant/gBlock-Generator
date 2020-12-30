@@ -62,7 +62,7 @@ guideRNAs = obtainGuideRNAsSavedOrOnlineCHOPCHOP(organism, gene, guide_rna_resul
 ## guide_rna_results_storage_folder structure (best not to touch this)
 
 ```
-guide_rna_results_storage_folder
+guide_rna_results_storage_folder (This folder should already exist)
 |
 |___Organism #1
 |   |
