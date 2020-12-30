@@ -67,6 +67,12 @@ guide_rna_results_storage_folder
 |___Organism #1
 |   |
 |   |___Gene #1
+|   |   |   guideRNAs.csv
+|   |   |   Knockout Output Summary.txt
+|   |   |___Off Targets
+|   |          1.offtargets
+|   |          2.offtargets
+|   |          ...
 |   |
 |   |___Gene #2
 |
