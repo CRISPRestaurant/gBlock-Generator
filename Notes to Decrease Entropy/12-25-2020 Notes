@@ -1,0 +1,25 @@
+A lot of this library you will be creating will require intuitive folder and file inputs
+for it to be used with ease by other developers
+
+So it is important to keep consistent track of pointers and whatnot
+
+There should be a save site for the web scraping of CHOPCHOP outputs since
+webscraping takes a long time for one gene. Right now make the chopchop/temp
+folder the host for all guideRNA output regarding organisms and genes.
+
+chopchop/temp/organism/gene shall contain the entire guide_rnas output info
+that can be read quickly by future knockout scripts without constantly doing
+web scraping
+
+You've saved the off targets but the next thing to do is save all the CHOPCHOP
+output data into the guide_rna_results_storage_folder so that you don't need
+to go through hundreds of pages for each gene knockout. Also keep a date when it
+is run so that we can give a rule where if the results are 3 months old we must
+do the webscraping again
+
+You want to be able to save a run where the unique attributes are organism
+and gene target.
+
+Have one summary file called output_summary.txt that displays
+
+Date Run: <Insert Date Run Here>
