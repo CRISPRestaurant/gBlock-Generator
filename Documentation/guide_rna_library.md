@@ -1,4 +1,4 @@
-# guide_rna_library Library
+# guide_rna_library Documentation
 [Source code](https://github.com/CRISPRestaurant/gBlock-Generator/blob/master/cooked_up_libraries/guide_rna_library.py) of library
 
 ## Methods
