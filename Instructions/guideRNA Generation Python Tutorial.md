@@ -1,6 +1,7 @@
 # Determining gRNA Candidates using CHOPCHOP and Python 2.7
 
-#### WARNING: This tutorial is mainly for the Saccharomyces Cerevisiae species. Nuances shall apply for other species and their respective configuration files.
+#### WARNING #1: This tutorial is mainly for the Saccharomyces Cerevisiae species. Nuances shall apply for other species and their respective configuration files.
+#### WARNING #2: This tutorial only works for Linux and does not work for windows. If you can get chopchop/twoBitToFa to run on Windows then you have become God/Goddess/Nonbinary Supreme Entity
 
 1. If you were like me and panicked a little pondering why Python 2.7 was still relevant, [here's a few lines](https://mothergeo-py.readthedocs.io/en/latest/development/how-to/venv-win.html) to setup a Python 2 virtual environment.
 
@@ -27,15 +28,13 @@ Option | Remember Input for Later
 --- | ---
 assembly | Month and Year
 
-4. Right click the new page, click "Save Page As", navigate to wherever your ```Gene_Table``` [folder](https://github.com/CRISPRestaurant/gBlock-Generator/tree/master/CHOPCHOP_Necessary_Genetic_Data/Gene_Tables) is,and type ```<your organism name>.gene_table``` into the Filename input, and save.
+4. Right click the new page, click "Save Page As", navigate to wherever your ```Gene_Table``` [folder](https://github.com/CRISPRestaurant/gBlock-Generator/tree/master/CHOPCHOP_Necessary_Genetic_Data/Gene_Tables) is, and type ```<your organism name>.gene_table``` into the Filename input, and save.
 
-5. Obtain the ```.2bit``` file for your organism by visiting [this site](https://hgdownload.soe.ucsc.edu/downloads.html) and looking for your species and the exact same assembly month and year as what you had inputed for obtaining the ```.gene_table```. Then navigate to ```Annotations``` and then ```Fileserver (bigBed, maf, fa, etc) annotations Also see Data Access```.
+5. Obtain the ```.2bit``` file for your organism by visiting [this site](https://hgdownload.soe.ucsc.edu/downloads.html) and looking for your species and the exact same assembly month and year as what you had inputted for obtaining the ```.gene_table```. Then navigate to ```Annotations``` and then ```Fileserver (bigBed, maf, fa, etc) annotations Also see Data Access```.
 
 6. Locate the ```.2bit``` file and save it into the ```2Bit_Genes``` [folder](https://github.com/CRISPRestaurant/gBlock-Generator/tree/master/CHOPCHOP_Necessary_Genetic_Data/2Bit_Genes).
 
-7. Obtain your EBWT files in two manners depending on if you are running Windows or Linux.
-
-For Linux run these set of commands.
+7. Obtain your EBWT files by running these set of scripts
 
 ```
 cd chopchop
@@ -43,8 +42,6 @@ cd chopchop
 ./bowtie/bowtie-build ../FASTA_Genes/<your organism name>.fa <your organism name>
 ```
 Move all your .ebwt files into ```EBWT_Genes```
-
-For Windows go [here](https://chopchop.cbu.uib.no/genomes/) and download all .ebwt files concerning your organism into the ```EBWT_Genes``` [folder](https://github.com/CRISPRestaurant/gBlock-Generator/tree/master/CHOPCHOP_Necessary_Genetic_Data/EBWT_Genes)
 
 8. Run the CHOPCHOP program to design the gRNAs by running the command below.
 
