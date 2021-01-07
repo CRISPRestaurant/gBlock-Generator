@@ -1,4 +1,5 @@
 from random import *
+import cooked_up_libraries.bio_string_parser as bsp
 
 # Generates a random DNA sequence of desired length
 def generateRandomSequence(length):
@@ -18,6 +19,41 @@ def generateRandomSequenceWithBlackList(length, blacklisted_sequences):
         output = generateRandomSequence(length)
 
     return output
+
+def generateRandomSequenceWithoutRepeatNucleotidesOfMinimalLength(length, max_repeat):
+    output = ""
+
+    for i in range(length):
+        repeat_at_maximum = False
+        character_if_at_repeat_maximum = "haha you don't know me yet"
+
+        if i >= max_repeat:
+            last_max_repeat = bsp.substring(output, len(output) - 1, max_repeat, left_endpoint = False)
+            unique_list = []
+
+            for character in last_max_repeat:
+                if character not in unique_list:
+                    unique_list.append(character)
+
+            if len(unique_list) == 1:
+                repeat_at_maximum = True
+                character_if_at_repeat_maximum = unique_list[0]
+
+        if repeat_at_maximum:
+            output += generateRandomSequenceWithBlackList(1, [character_if_at_repeat_maximum])
+        else:
+            output += generateRandomSequence(1)
+
+    return output
+
+def generateRandomSequenceWithoutRepeatNucleotidesOfMinimalLengthAndWithBlackList(length, max_repeat, blacklisted_sequences):
+    output = generateRandomSequenceWithoutRepeatNucleotidesOfMinimalLength(length, max_repeat)
+
+    while output in blacklisted_sequences:
+        output = generateRandomSequenceWithoutRepeatNucleotidesOfMinimalLength(length, max_repeat)
+
+    return output
+
 
 # Return the complementary strand for a sequence
 def getComplementaryStrand(sequence):
@@ -105,6 +141,16 @@ def obtainGCPriority(sequence):
         return 2
     else:
         return 1
+
+# Returns whether GC content of primer candidate is within
+# optimal range between 40% and 60%
+def isOptimalGCPrimer(sequence):
+    gc_content = obtainGCContent(sequence)
+
+    if gc_content >= 0.40 and gc_content <= 0.60:
+        return True
+    else:
+        return False
 
 # Assigns a priority based on the purine content in
 # the last four nucleotides of the sequence

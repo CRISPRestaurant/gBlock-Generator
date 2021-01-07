@@ -21,7 +21,7 @@ def obtainGuideRNAsOfflineCHOPCHOP(organism_name, target_gene, guide_rna_results
     # Removes all previous off target data downloaded into the off_target_site_destination_folder
     organism_folder = "%s/%s" % (guide_rna_results_storage_folder, organism_name)
     gene_folder = "%s/%s/%s" % (guide_rna_results_storage_folder, organism_name, target_gene)
-    off_target_folder = "%s/%s/%s/Off Targets" % (guide_rna_results_storage_folder, organism_name, target_gene)
+    off_target_folder = "%s/%s/%s/Off_Targets" % (guide_rna_results_storage_folder, organism_name, target_gene)
     if os.path.isdir(organism_folder):
         if os.path.isdir(gene_folder):
             shutil.rmtree(gene_folder)
@@ -65,7 +65,7 @@ def obtainGuideRNAsOnlineCHOPCHOP(organism_name, target_gene, guide_rna_results_
     # Removes all previous off target data downloaded into the off_target_site_destination_folder
     organism_folder = "%s/%s" % (guide_rna_results_storage_folder, organism_name)
     gene_folder = "%s/%s/%s" % (guide_rna_results_storage_folder, organism_name, target_gene)
-    off_target_folder = "%s/%s/%s/Off Targets" % (guide_rna_results_storage_folder, organism_name, target_gene)
+    off_target_folder = "%s/%s/%s/Off_Targets" % (guide_rna_results_storage_folder, organism_name, target_gene)
     if os.path.isdir(organism_folder):
         if os.path.isdir(gene_folder):
             shutil.rmtree(gene_folder)
