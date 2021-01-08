@@ -1,0 +1,63 @@
+At this point you have created a first algorithm to successfully get primers all the time,
+the problem is the lengths when the SbfI digest is done is not different enough to show
+significant visual difference on a gel.
+
+Now we need a new algorithm such that as the degree of asymmetry inputted increases the
+separation on the gel increases as well.
+
+Arguments proposed:
+
+- Degree of Asymmetry (DOA)
+- Approximate minimum space length between restriction site and left primer search space or right primer search space,
+  depending on which is the minimum, this is only for the first amplicon combination (MSL - minimum spacing length)
+- Length of both left primer search space and right primer search space (not left primer search space +
+  right primer search space but left primer search space = right primer search space) (PSSL - primer search space length)
+- Maximum length of the amplicon (MAL - maximum amplicon length)
+
+If # of base pairs right of the restriction digest is smaller than # of base pairs left of the restriction digest,
+do Case #1
+
+If # of base pairs left of the restriction digest is smaller than # of base pairs right of the restriction digest,
+do Case #2
+
+Case #1:
+
+1. Design the first amplicon combination
+1a. Have the PSSL bp right primer search space be MSL bp away from the restriction digest region
+1b. Have the PSSL bp left primer search space be MSL * DOA bp away from the restriction digest region
+1c. Note the probability of finding a 20 bp primer in the optimal GC range
+
+2. Design the rest amplicon combinations
+2a. Shift the PSSL bp right primer search space 1 bp to the right
+2b. Shift the PSSL bp left primer search space DOA bp to the left
+2c. Note the probability of finding a 20 bp primer in the optimal GC range (to save time keep note of the
+number of optimal primers and the total number of possible primers, and then just determine which optimal primers
+are lost moving away from them and which optimal primers are gained by moving towards them)
+
+3. Repeat Step 2 until the amplicon length exceeds MAL, do not include this exceeded amplicon length into determination
+of optimal amplicon
+
+4. Find the optimal amplicon from the max probability value
+
+5. Use this to obtain primers and once you obtain the primers get the lengths of the DNA after Sbf1 digest
+
+Case #2:
+
+1. Design the first amplicon combination
+1a. Have the PSSL bp left primer search space be MSL bp away from the restriction digest region
+1b. Have the PSSL bp right primer search space be MSL * DOA bp away from the restriction digest region
+1c. Note the probability of finding a 20 bp primer in the optimal GC range
+
+2. Design the rest amplicon combinations
+2a. Shift the PSSL bp left primer search space 1 bp to the left
+2b. Shift the PSSL bp right primer search space DOA bp to the right
+2c. Note the probability of finding a 20 bp primer in the optimal GC range (to save time keep note of the
+number of optimal primers and the total number of possible primers, and then just determine which optimal primers
+are lost moving away from them and which optimal primers are gained by moving towards them)
+
+3. Repeat Step 2 until the amplicon length exceeds MAL, do not include this exceeded amplicon length into determination
+of optimal amplicon
+
+4. Find the optimal amplicon from the max probability value
+
+5. Use this to obtain primers and once you obtain the primers get the lengths of the DNA after Sbf1 digest

@@ -447,21 +447,21 @@ def obtaingBlockCandidatesWithoutBsaISite(organism, gene, gene_table_for_organis
             #plt.title("Right Primer Analysis guideRNA #%s for Knocking Gene %s in Organism %s" % (guide_rna[0], gene, organism))
 
             #plt.figure()
-            #if left_primer_region_length <= right_primer_region_length:
-            #    print("Left primer region lengths plotted")
-            #    plt.plot(left_primer_region_lengths, total_amplicon_region_optimalGCpercentage, color = "black", label = "mlem")
-            #else:
-            #    print("Right primer region lengths plotted")
-            #    plt.plot(right_primer_region_lengths, total_amplicon_region_optimalGCpercentage, color = "black", label = "mlem")
+            if left_primer_region_length <= right_primer_region_length:
+                print("Left primer region lengths plotted")
+                plt.plot(left_primer_region_lengths, total_amplicon_region_optimalGCpercentage, color = "black", label = "mlem")
+            else:
+                print("Right primer region lengths plotted")
+                plt.plot(right_primer_region_lengths, total_amplicon_region_optimalGCpercentage, color = "black", label = "mlem")
 
-            #plt.show()
+            plt.show()
 
-            #end_program = input("End program\n")
+            end_program = input("End program\n")
 
-            #if end_program == "y":
-            #    exit()
-            #else:
-            #    continue
+            if end_program == "y":
+                exit()
+            else:
+                continue
             #### This new amplicon design testing section has ended
 
             # Obtaining string to obtain primers
