@@ -15,6 +15,7 @@ import cooked_up_libraries.restriction_enzymes as restriction_enzymes
 import cooked_up_libraries.guide_rna_library as guide_rna_library
 import cooked_up_libraries.fasta_library as fasta_library
 import cooked_up_libraries.bio_string_parser as bsp
+import cooked_up_libraries.restriction_digest_analysis as rda
 
 # Ensures all the previous three filters were passed for a given sequence
 def firstgBlockFilterOutcome(sequence):
@@ -214,6 +215,36 @@ def obtaingBlockCandidatesWithoutBsaISite(organism, gene, gene_table_for_organis
             right_hr_end_position = position + len(guide_plus_pam) + 51
 
             right_hr = bsp.substring(organism_fasta[chromosome], position + len(guide_plus_pam) + 1, 50, left_endpoint = True)
+
+            exon_ranges = gene_table_for_organism[gene]["exonRanges"]
+
+            # Simple procedure to find exon start position that the guideRNA is residing in
+            exon_start_position = 0
+
+            for exon_range in exon_ranges:
+                if position >= int(exon_range[0]) and position <= int(exon_range[1]):
+                    exon_start_position = int(exon_range[0])
+                    break
+
+            difference = position - exon_start_position
+            remainder = difference % 3
+
+            prefix = ""
+
+            if remainder != 0:
+                prefix = dna_properties.generateRandomSequence(3 - remainder)
+
+            # build variable is easy recognition and analysis by human observers
+            build = left_hr + "|" + prefix + "|" + "TAA" + "|" + SbfI + "|" + right_hr + "|||" + guide_rna[1]
+            build = "%s|%s|TAA|%s|%s|||%s" % (left_hr, prefix, SbfI, right_hr, guide_rna[1])
+            # build real is the real sequence that should be placed into order forms and et cetera
+            build_real = build.replace('|', '')
+
+            build_for_edited_chunk = "%s%sTAA%s%s" % (left_hr, prefix, SbfI, right_hr)
+            edited_chromosome = organism_fasta[chromosome][0: left_hr_start_position] + build_for_edited_chunk + organism_fasta[chromosome][(right_hr_end_position + 1):]
+            base_pair_position_before_digest_cut = left_hr_start_position + len(left_hr) + len(prefix) + 8
+
+            print(rda.obtainPrimersForMeaningfulDigestAnalysis(edited_chromosome, left_hr_start_position, right_hr_end_position, base_pair_position_before_digest_cut, 2, 100, 100, 20, 1000))
 
             #### This section is going to analyze the mean, std, min, max, median GC content of primers for all possible amplicons (given certain rule)
             #### creating assymetry along the SbFI site to obtain optimal amplicon
@@ -447,21 +478,21 @@ def obtaingBlockCandidatesWithoutBsaISite(organism, gene, gene_table_for_organis
             #plt.title("Right Primer Analysis guideRNA #%s for Knocking Gene %s in Organism %s" % (guide_rna[0], gene, organism))
 
             #plt.figure()
-            if left_primer_region_length <= right_primer_region_length:
-                print("Left primer region lengths plotted")
-                plt.plot(left_primer_region_lengths, total_amplicon_region_optimalGCpercentage, color = "black", label = "mlem")
-            else:
-                print("Right primer region lengths plotted")
-                plt.plot(right_primer_region_lengths, total_amplicon_region_optimalGCpercentage, color = "black", label = "mlem")
+            #if left_primer_region_length <= right_primer_region_length:
+            #    print("Left primer region lengths plotted")
+            #    plt.plot(left_primer_region_lengths, total_amplicon_region_optimalGCpercentage, color = "black", label = "mlem")
+            #else:
+            #    print("Right primer region lengths plotted")
+            #    plt.plot(right_primer_region_lengths, total_amplicon_region_optimalGCpercentage, color = "black", label = "mlem")
 
-            plt.show()
+            #plt.show()
 
-            end_program = input("End program\n")
+            #end_program = input("End program\n")
 
-            if end_program == "y":
-                exit()
-            else:
-                continue
+            #if end_program == "y":
+            #    exit()
+            #else:
+            #    continue
             #### This new amplicon design testing section has ended
 
             # Obtaining string to obtain primers
@@ -496,30 +527,6 @@ def obtaingBlockCandidatesWithoutBsaISite(organism, gene, gene_table_for_organis
             # End Obtaining string to obtain primers
 
             first_filter_block = left_hr + SbfI + right_hr + guide
-
-            exon_ranges = gene_table_for_organism[gene]["exonRanges"]
-
-            # Simple procedure to find exon start position that the guideRNA is residing in
-            exon_start_position = 0
-
-            for exon_range in exon_ranges:
-                if position >= int(exon_range[0]) and position <= int(exon_range[1]):
-                    exon_start_position = int(exon_range[0])
-                    break
-
-            difference = position - exon_start_position
-            remainder = difference % 3
-
-            prefix = ""
-
-            if remainder != 0:
-                prefix = dna_properties.generateRandomSequence(3 - remainder)
-
-            # build variable is easy recognition and analysis by human observers
-            build = left_hr + "|" + prefix + "|" + "TAA" + "|" + SbfI + "|" + right_hr + "|||" + guide_rna[1]
-            build = "%s|%s|TAA|%s|%s|||%s" % (left_hr, prefix, SbfI, right_hr, guide_rna[1])
-            # build real is the real sequence that should be placed into order forms and et cetera
-            build_real = build.replace('|', '')
 
             if firstgBlockFilterOutcome(build_real):
                 first_filter_passed_guideRNAs.append(guide_rna)

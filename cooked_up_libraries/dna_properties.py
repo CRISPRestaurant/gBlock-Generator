@@ -1,5 +1,6 @@
 from random import *
 import cooked_up_libraries.bio_string_parser as bsp
+import primer3
 
 # Generates a random DNA sequence of desired length
 def generateRandomSequence(length):
@@ -151,6 +152,14 @@ def isOptimalGCPrimer(sequence):
         return True
     else:
         return False
+
+def isMeltingTemperatureWithinRange(sequence, lower_end, upper_end):
+    melting_temperature = primer3.calcTm(sequence)
+
+    return melting_temperature >= lower_end and melting_temperature <= upper_end
+
+def hasHairpinStructure(sequence):
+    return primer3.calcHairpin(sequence).structure_found
 
 # Assigns a priority based on the purine content in
 # the last four nucleotides of the sequence
