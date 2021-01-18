@@ -244,7 +244,7 @@ def obtaingBlockCandidatesWithoutBsaISite(organism, gene, gene_table_for_organis
             edited_chromosome = organism_fasta[chromosome][0: left_hr_start_position] + build_for_edited_chunk + organism_fasta[chromosome][(right_hr_end_position + 1):]
             base_pair_position_before_digest_cut = left_hr_start_position + len(left_hr) + len(prefix) + 8
 
-            print(rda.obtainPrimersForMeaningfulDigestAnalysis(edited_chromosome, left_hr_start_position, right_hr_end_position, base_pair_position_before_digest_cut, 2, 100, 100, 20, 1000))
+            print(rda.obtainPrimersForMeaningfulDigestAnalysis(edited_chromosome, left_hr_start_position, right_hr_end_position, base_pair_position_before_digest_cut, 2, 20, 100, 20, 1000))
 
             #### This section is going to analyze the mean, std, min, max, median GC content of primers for all possible amplicons (given certain rule)
             #### creating assymetry along the SbFI site to obtain optimal amplicon
