@@ -7,6 +7,7 @@ import pandas as pd
 import sys
 import matplotlib.pyplot as plt
 import time
+import seaborn as sns
 
 # libraries cooked up for greater organization and specialized potential in the future
 import cooked_up_libraries.dna_properties as dna_properties
@@ -57,7 +58,7 @@ def obtainOffTargetSitePriority(off_target_output_folder, output_number):
 
 # primer_search_availability_database is a metric to assess how easy it is to find primers that
 # can confirm the gene edit took place
-def prioritize_guide_RNAs(sequences, off_target_output_folder, primer_search_availability_database):
+def prioritize_guide_RNAs(sequences, off_target_output_folder, primer_database):
     # priority_dict is contained as {guideRNA: priority_value}
     priority_dict = {}
     sequence_properties = {}
@@ -72,7 +73,18 @@ def prioritize_guide_RNAs(sequences, off_target_output_folder, primer_search_ava
         last_purine_priority = dna_properties.obtainLastPurinePriority(sequence[1])
         earlier_orf_priority = obtainEarlierORFPriority(position)
         off_target_site_priority = obtainOffTargetSitePriority(off_target_output_folder, sequence[0])
-        primer_availability_priority = pow(primer_search_availability_database[sequence[0]]["OPTIMAL_GC_PROBABILITY"], 5)
+        primer_availability_priority = 0
+
+        primer_results = primer_database[sequence[0]]
+
+        for degree_of_asymmetry in primer_results.keys():
+            primer_result = primer_results[degree_of_asymmetry]
+
+            for primer_pair in primer_result:
+                max_bp_digest_length = max(primer_pair[2][0], primer_pair[2][1])
+                min_bp_digest_length = min(primer_pair[2][0], primer_pair[2][1])
+
+                primer_availability_priority += pow(max_bp_digest_length - min_bp_digest_length, 4)
 
         priority_value = gc_priority * last_purine_priority * earlier_orf_priority * off_target_site_priority * primer_availability_priority
 
@@ -172,9 +184,7 @@ def obtaingBlockCandidatesWithoutBsaISite(organism, gene, gene_table_for_organis
     # Very crude processing of primer information
     primer_target_round_one = {}
     # Test info to keep in memory
-    primer_guideRNA_optimal_info = {}
     gBlocks_without_BsaI_guideRNA_info = {}
-    homology_arms_guideRNA_info = {}
     # Very refined version with primer sequence and melting temperature
     primer_target_final_round = {}
 
@@ -244,297 +254,55 @@ def obtaingBlockCandidatesWithoutBsaISite(organism, gene, gene_table_for_organis
             edited_chromosome = organism_fasta[chromosome][0: left_hr_start_position] + build_for_edited_chunk + organism_fasta[chromosome][(right_hr_end_position + 1):]
             base_pair_position_before_digest_cut = left_hr_start_position + len(left_hr) + len(prefix) + 8
 
-            print(rda.obtainPrimersForMeaningfulDigestAnalysis(edited_chromosome, left_hr_start_position, right_hr_end_position, base_pair_position_before_digest_cut, 2, 20, 100, 20, 1000))
-
-            #### This section is going to analyze the mean, std, min, max, median GC content of primers for all possible amplicons (given certain rule)
-            #### creating assymetry along the SbFI site to obtain optimal amplicon
-
-            #### This section determines the optimal amplicon
-
-            end_of_left_primer_portion_of_amplicon = left_hr_start_position - 1
-            start_of_right_primer_portion_of_amplicon = right_hr_end_position + 1
-
-            available_length_for_left_primer_portion_of_amplicon = end_of_left_primer_portion_of_amplicon + 1
-            available_length_for_right_primer_portion_of_amplicon = len(organism_fasta[chromosome]) - start_of_right_primer_portion_of_amplicon
-
-            degree_of_asymmetry = 3
-            length_of_primer = 20
-            initial_smallest_region_amplicon_length = 100
-
-            is_left_primer_availability_a_minimum = min(available_length_for_left_primer_portion_of_amplicon, available_length_for_right_primer_portion_of_amplicon) == available_length_for_left_primer_portion_of_amplicon
-
-            left_primer_region_length = 0
-            right_primer_region_length = 0
-
-            left_primer_region_step = 0
-            right_primer_region_step = 0
-
-            if is_left_primer_availability_a_minimum:
-                left_primer_region_length = initial_smallest_region_amplicon_length
-                right_primer_region_length = left_primer_region_length * degree_of_asymmetry
-
-                left_primer_region_step = 1
-                right_primer_region_step = degree_of_asymmetry
-            else:
-                right_primer_region_length = initial_smallest_region_amplicon_length
-                left_primer_region_length = right_primer_region_length * degree_of_asymmetry
-
-                left_primer_region_step = degree_of_asymmetry
-                right_primer_region_step = 1
-
-            # Statistics relating to left primer regions in all possible amplicons developed under certain conditions
-            # Includes lengths for independent variable, and mean, std, min, max
-            # percentage of primers within GC content range 40 - 60%
-            left_primer_region_lengths = []
-            left_primer_region_meanGC = []
-            left_primer_region_stdGC = []
-            left_primer_region_minGC = []
-            left_primer_region_maxGC = []
-            left_primer_region_optimalGCpercentage = []
-
-            # Statistics relating to right primer regions in all possible amplicons developed under certain conditions
-            # Includes lengths for independent variable, and mean, std, min, max
-            # percentage of primers within GC content range 40 - 60%
-            right_primer_region_lengths = []
-            right_primer_region_meanGC = []
-            right_primer_region_stdGC = []
-            right_primer_region_minGC = []
-            right_primer_region_maxGC = []
-            right_primer_region_optimalGCpercentage = []
-
-            total_amplicon_region_optimalGCpercentage = []
-
-            # Variables important to keep track of to ensure O(1) run time instead of O(n^2)
-            num_possible_left_primers = left_primer_region_length - length_of_primer + 1
-            current_meanGC_left_primers = 0
-            current_sumGC_left_primers = 0
-            current_sum_squaredGC_left_primers = 0
-            current_minGC_left_primers = sys.maxsize
-            current_maxGC_left_primers = -1
-            current_numOptimal_left_primers = 0
-
-            num_possible_right_primers = right_primer_region_length - length_of_primer + 1
-            current_meanGC_right_primers = 0
-            current_sumGC_right_primers = 0
-            current_sum_squaredGC_right_primers = 0
-            current_minGC_right_primers = sys.maxsize
-            current_maxGC_right_primers = -1
-            current_numOptimal_right_primers = 0
-
-            current_maxOptimal_left_primer_region_length = 0
-            current_maxOptimal_right_primer_region_length = 0
-            current_maxOptimal_total_region_value = -1
-
-            # Conditions for generating possible amplicons
-            # 1. Left primer region cannot exceed start of chromosome
-            # 2. Right primer region cannot exceed end of chromosome
-            # 3. Length of left primer region + length of right primer region must be less than 1000
-            while left_primer_region_length + right_primer_region_length <= 1000 and left_primer_region_length <= available_length_for_left_primer_portion_of_amplicon and right_primer_region_length <= available_length_for_right_primer_portion_of_amplicon:
-                left_primer_region_str = bsp.substring(organism_fasta[chromosome], end_of_left_primer_portion_of_amplicon, left_primer_region_length, left_endpoint = False)
-                right_primer_region_str = bsp.substring(organism_fasta[chromosome], start_of_right_primer_portion_of_amplicon, right_primer_region_length, left_endpoint = True)
-                if num_possible_left_primers == initial_smallest_region_amplicon_length - length_of_primer + 1 or num_possible_right_primers == initial_smallest_region_amplicon_length - length_of_primer + 1:
-                    all_possible_left_primers = bsp.all_possible_substrings_by_length(left_primer_region_str, length_of_primer)
-                    all_possible_right_primers = bsp.all_possible_substrings_by_length(right_primer_region_str, length_of_primer)
-
-                    for left_primer in all_possible_left_primers:
-                        left_primerGC = dna_properties.obtainGCContent(left_primer)
-
-                        current_sumGC_left_primers += left_primerGC
-                        current_sum_squaredGC_left_primers += pow(left_primerGC, 2)
-                        current_minGC_left_primers = min(current_minGC_left_primers, left_primerGC)
-                        current_maxGC_left_primers = max(current_maxGC_left_primers, left_primerGC)
-
-                        if dna_properties.isOptimalGCPrimer(left_primer):
-                            current_numOptimal_left_primers += 1
-
-                    for right_primer in all_possible_right_primers:
-                        right_primerGC = dna_properties.obtainGCContent(right_primer)
-
-                        current_sumGC_right_primers += right_primerGC
-                        current_sum_squaredGC_right_primers += pow(right_primerGC, 2)
-                        current_minGC_right_primers = min(current_minGC_right_primers, right_primerGC)
-                        current_maxGC_right_primers = max(current_maxGC_right_primers, right_primerGC)
-
-                        if dna_properties.isOptimalGCPrimer(right_primer):
-                            current_numOptimal_right_primers += 1
-
-                    current_meanGC_left_primers = current_sumGC_left_primers / num_possible_left_primers
-                    current_optimalGCpercentage_left_primers = current_numOptimal_left_primers / num_possible_left_primers
-
-                    current_meanGC_right_primers = current_sumGC_right_primers / num_possible_right_primers
-                    current_optimalGCpercentage_right_primers = current_numOptimal_right_primers / num_possible_right_primers
-
-                    current_optimalGCpercentage_total_region = current_optimalGCpercentage_left_primers * current_optimalGCpercentage_right_primers
-
-                    if current_optimalGCpercentage_total_region > current_maxOptimal_total_region_value:
-                        current_maxOptimal_total_region_value = current_optimalGCpercentage_total_region
-                        current_maxOptimal_left_primer_region_length = left_primer_region_length
-                        current_maxOptimal_right_primer_region_length = right_primer_region_length
-
-                    left_primer_region_meanGC.append(current_meanGC_left_primers)
-                    left_primer_region_minGC.append(current_minGC_left_primers)
-                    left_primer_region_maxGC.append(current_maxGC_left_primers)
-                    left_primer_region_optimalGCpercentage.append(current_optimalGCpercentage_left_primers)
-
-                    right_primer_region_meanGC.append(current_meanGC_right_primers)
-                    right_primer_region_minGC.append(current_minGC_right_primers)
-                    right_primer_region_maxGC.append(current_maxGC_right_primers)
-                    right_primer_region_optimalGCpercentage.append(current_optimalGCpercentage_right_primers)
-
-                    total_amplicon_region_optimalGCpercentage.append(current_optimalGCpercentage_total_region)
-
-                    if num_possible_left_primers != 1:
-                        current_stdGC_left_primers = pow(abs((num_possible_left_primers * pow(current_meanGC_left_primers, 2) - 2 * current_meanGC_left_primers * current_sumGC_left_primers + current_sum_squaredGC_left_primers) / (num_possible_left_primers - 1)), 0.5)
-                        current_stdGC_right_primers = 0.5
-
-                        left_primer_region_stdGC.append(current_stdGC_left_primers)
-                        right_primer_region_stdGC.append(current_stdGC_right_primers)
-                    else:
-                        current_stdGC_left_primers = 0.5
-                        current_stdGC_right_primers = pow(abs((num_possible_right_primers * pow(current_meanGC_right_primers, 2) - 2 * current_meanGC_right_primers * current_sumGC_right_primers + current_sum_squaredGC_right_primers) / (num_possible_right_primers - 1)), 0.5)
-
-                        left_primer_region_stdGC.append(current_stdGC_left_primers)
-                        right_primer_region_stdGC.append(current_stdGC_right_primers)
-                else:
-                    for left_primer_position in range(left_primer_region_step):
-                        left_primer = bsp.substring(left_primer_region_str, left_primer_position, length_of_primer, left_endpoint = True)
-
-                        left_primerGC = dna_properties.obtainGCContent(left_primer)
-
-                        current_sumGC_left_primers += left_primerGC
-                        current_sum_squaredGC_left_primers += pow(left_primerGC, 2)
-                        current_minGC_left_primers = min(current_minGC_left_primers, left_primerGC)
-                        current_maxGC_left_primers = max(current_maxGC_left_primers, left_primerGC)
-
-                        if dna_properties.isOptimalGCPrimer(left_primer):
-                            current_numOptimal_left_primers += 1
-
-                    for right_primer_position in range(right_primer_region_step):
-                        right_primer = bsp.substring(right_primer_region_str, len(right_primer_region_str) - right_primer_position - 1, length_of_primer, left_endpoint = False)
-
-                        current_sumGC_right_primers += right_primerGC
-                        current_sum_squaredGC_right_primers += pow(right_primerGC, 2)
-                        current_minGC_right_primers = min(current_minGC_right_primers, right_primerGC)
-                        current_maxGC_right_primers = max(current_maxGC_right_primers, right_primerGC)
-
-                        if dna_properties.isOptimalGCPrimer(right_primer):
-                            current_numOptimal_right_primers += 1
-
-                    current_meanGC_left_primers = current_sumGC_left_primers / num_possible_left_primers
-                    current_optimalGCpercentage_left_primers = current_numOptimal_left_primers / num_possible_left_primers
-
-                    current_meanGC_right_primers = current_sumGC_right_primers / num_possible_right_primers
-                    current_optimalGCpercentage_right_primers = current_numOptimal_right_primers / num_possible_right_primers
-
-                    current_optimalGCpercentage_total_region = current_optimalGCpercentage_left_primers * current_optimalGCpercentage_right_primers
-
-                    if current_optimalGCpercentage_total_region > current_maxOptimal_total_region_value:
-                        current_maxOptimal_total_region_value = current_optimalGCpercentage_total_region
-                        current_maxOptimal_left_primer_region_length = left_primer_region_length
-                        current_maxOptimal_right_primer_region_length = right_primer_region_length
-
-                    left_primer_region_meanGC.append(current_meanGC_left_primers)
-                    left_primer_region_minGC.append(current_minGC_left_primers)
-                    left_primer_region_maxGC.append(current_maxGC_left_primers)
-                    left_primer_region_optimalGCpercentage.append(current_meanGC_left_primers)
-
-                    right_primer_region_meanGC.append(current_meanGC_right_primers)
-                    right_primer_region_minGC.append(current_minGC_right_primers)
-                    right_primer_region_maxGC.append(current_maxGC_right_primers)
-                    right_primer_region_optimalGCpercentage.append(current_meanGC_right_primers)
-
-                    total_amplicon_region_optimalGCpercentage.append(current_optimalGCpercentage_total_region)
-
-                    current_stdGC_left_primers = pow(abs((num_possible_left_primers * pow(current_meanGC_left_primers, 2) - 2 * current_meanGC_left_primers * current_sumGC_left_primers + current_sum_squaredGC_left_primers) / (num_possible_left_primers - 1)), 0.5)
-                    current_stdGC_right_primers = pow(abs((num_possible_right_primers * pow(current_meanGC_right_primers, 2) - 2 * current_meanGC_right_primers * current_sumGC_right_primers + current_sum_squaredGC_right_primers) / (num_possible_right_primers - 1)), 0.5)
-
-                    left_primer_region_stdGC.append(current_stdGC_left_primers)
-                    right_primer_region_stdGC.append(current_stdGC_right_primers)
-
-                num_possible_left_primers += left_primer_region_step
-                num_possible_right_primers += right_primer_region_step
-
-                left_primer_region_lengths.append(left_primer_region_length)
-                right_primer_region_lengths.append(right_primer_region_length)
-
-                left_primer_region_length += left_primer_region_step
-                right_primer_region_length += right_primer_region_step
-
-            # Plotting Figures when debugging stuff or making cool plots for presentation
-            #plt.figure()
-            #plt.plot(left_primer_region_lengths, left_primer_region_meanGC, color = "red", label = "Mean Left Primers GC Content")
-            #plt.plot(left_primer_region_lengths, left_primer_region_stdGC, color = "blue", label = "Std Left Primers GC Content")
-            #plt.plot(left_primer_region_lengths, left_primer_region_minGC, color = "green", label = "Min Left Primers GC Content")
-            #plt.plot(left_primer_region_lengths, left_primer_region_maxGC, color = "black", label = "Max Left Primers GC Content")
-            #plt.plot(left_primer_region_lengths, left_primer_region_optimalGCpercentage, color = "red", label = "mlem")
-            #plt.title("Left Primer Analysis guideRNA #%s for Knocking Gene %s in Organism %s" % (guide_rna[0], gene, organism))
-
-            #plt.figure()
-            #plt.plot(right_primer_region_lengths, right_primer_region_meanGC, color = "red", label = "Mean Right Primers GC Content")
-            #plt.plot(right_primer_region_lengths, right_primer_region_stdGC, color = "blue", label = "Std Right Primers GC Content")
-            #plt.plot(right_primer_region_lengths, right_primer_region_minGC, color = "green", label = "Min Right Primers GC Content")
-            #plt.plot(right_primer_region_lengths, right_primer_region_maxGC, color = "black", label = "Max Right Primers GC Content")
-            #plt.plot(right_primer_region_lengths, right_primer_region_optimalGCpercentage, color = "red", label = "mlem")
-            #plt.title("Right Primer Analysis guideRNA #%s for Knocking Gene %s in Organism %s" % (guide_rna[0], gene, organism))
-
-            #plt.figure()
-            #if left_primer_region_length <= right_primer_region_length:
-            #    print("Left primer region lengths plotted")
-            #    plt.plot(left_primer_region_lengths, total_amplicon_region_optimalGCpercentage, color = "black", label = "mlem")
-            #else:
-            #    print("Right primer region lengths plotted")
-            #    plt.plot(right_primer_region_lengths, total_amplicon_region_optimalGCpercentage, color = "black", label = "mlem")
-
-            #plt.show()
-
-            #end_program = input("End program\n")
-
-            #if end_program == "y":
-            #    exit()
-            #else:
-            #    continue
-            #### This new amplicon design testing section has ended
-
-            # Obtaining string to obtain primers
-            start_position_first_for_primer = position - 50
-            end_position_first_for_primer = position + len(guide_plus_pam) + 50
-
-            length_of_arm = len(guide_plus_pam) + 101
-            length_for_ends = 1100 - length_of_arm
-
-            potential_left_end_length = int(length_for_ends / 4)
-            potential_right_end_length = length_for_ends - potential_left_end_length
-
-            length_of_chromosome = len(organism_fasta[chromosome])
-
-            availability_at_the_beginning = start_position_first_for_primer
-            availability_at_the_end = length_of_chromosome - 1 - end_position_first_for_primer
-
-            if availability_at_the_beginning < potential_left_end_length:
-                add_to_right_end = potential_left_end_length - availability_at_the_beginning
-                potential_left_end_length = availability_at_the_beginning
-                potential_right_end_length += add_to_right_end
-
-            if availability_at_the_end < potential_right_end_length:
-                add_to_left_end = potential_right_end_length - availability_at_the_end
-                potential_right_end_length = availability_at_the_end
-                potential_left_end_length += add_to_left_end
-
-            # Information for primer deduction formatted in
-            # [[start of amplicon, end of left homology arm], [start of right homology arm, end of amplicon], chromosome number, length of available place to find left primers, length of available place to find right primers]
-            primer_target = [[position - 50 - potential_left_end_length, position], [position + len(guide_plus_pam) + 1, position + len(guide_plus_pam) + 51 + potential_right_end_length], chromosome, potential_left_end_length, potential_right_end_length, []]
-
-            # End Obtaining string to obtain primers
-
-            first_filter_block = left_hr + SbfI + right_hr + guide
+            primers_for_each_degree_of_assymetry = {}
+
+            for degree_of_asymmetry in range(2, 6):
+                primers_for_each_degree_of_assymetry[degree_of_asymmetry] = rda.obtainPrimersForMeaningfulDigestAnalysis(edited_chromosome, left_hr_start_position, right_hr_end_position, base_pair_position_before_digest_cut, degree_of_asymmetry, minimum_spacing_length, primer_search_space_length, primer_length, maximum_amplicon_length)
+
+            # different_degree_of_assymetry_plots = {"Degree of Assymetry": [], "DNA Digest Base Pair Difference": [], "Primer Pair": []}
+            #
+            # minimum_spacing_length = 20
+            # primer_search_space_length = 200
+            # primer_length = 20
+            # maximum_amplicon_length = 1000
+            # for degree_of_asymmetry in range(2, 6):
+            #     primer_output = rda.obtainPrimersForMeaningfulDigestAnalysis(edited_chromosome, left_hr_start_position, right_hr_end_position, base_pair_position_before_digest_cut, degree_of_asymmetry, minimum_spacing_length, primer_search_space_length, primer_length, maximum_amplicon_length)
+            #
+            #     for primer_index in range(len(primer_output)):
+            #         primer = primer_output[primer_index]
+            #
+            #         degree_of_asymmetry_column = different_degree_of_assymetry_plots["Degree of Assymetry"]
+            #         base_pair_difference_column = different_degree_of_assymetry_plots["DNA Digest Base Pair Difference"]
+            #         primer_pair_index_column = different_degree_of_assymetry_plots["Primer Pair"]
+            #
+            #         degree_of_asymmetry_column.append(degree_of_asymmetry)
+            #
+            #         max_bp_digest_length = max(primer[2][0], primer[2][1])
+            #         min_bp_digest_length = min(primer[2][0], primer[2][1])
+            #
+            #         base_pair_difference_column.append(max_bp_digest_length - min_bp_digest_length)
+            #         primer_pair_index_column.append(primer_index + 1)
+            #
+            #         different_degree_of_assymetry_plots["Degree of Assymetry"] = degree_of_asymmetry_column
+            #         different_degree_of_assymetry_plots["DNA Digest Base Pair Difference"] = base_pair_difference_column
+            #         different_degree_of_assymetry_plots["Primer Pair"] = primer_pair_index_column
+            #
+            # degree_of_asymmetry_plot = pd.DataFrame(different_degree_of_assymetry_plots, columns = ["Degree of Assymetry", "DNA Digest Base Pair Difference", "Primer Pair"])
+            # sns.set_theme(style = "whitegrid")
+            #
+            # degree_of_asymmetry_graph = sns.barplot(x = "Degree of Assymetry", y = "DNA Digest Base Pair Difference", hue = "Primer Pair", data = degree_of_asymmetry_plot)
+            # degree_of_asymmetry_graph.set_title("")
+            # plt.show()
+            #
+            # end_program = input("End Program?\n")
+            #
+            # if end_program == "y":
+            #     exit()
 
             if firstgBlockFilterOutcome(build_real):
                 first_filter_passed_guideRNAs.append(guide_rna)
-                primer_target_round_one[guide_rna[1]] = primer_target
-                primer_guideRNA_optimal_info[guide_rna[0]] = {"END_OF_LEFT_PRIMER_REGION": end_of_left_primer_portion_of_amplicon, "LENGTH_OF_LEFT_PRIMER_REGION": current_maxOptimal_left_primer_region_length, "START_OF_RIGHT_PRIMER_REGION": start_of_right_primer_portion_of_amplicon, "LENGTH_OF_RIGHT_PRIMER_REGION": current_maxOptimal_right_primer_region_length, "OPTIMAL_GC_PROBABILITY": current_maxOptimal_total_region_value}
-                homology_arms_guideRNA_info[guide_rna[0]] = {"LEFT_HOMOLOGY_ARM": left_hr, "START_OF_LEFT_HOMOLOGY_ARM": left_hr_start_position, "END_OF_LEFT_HOMOLOGY_ARM": left_hr_end_position, "RIGHT_HOMOLOGY_ARM": right_hr, "START_OF_RIGHT_HOMOLOGY_ARM": right_hr_start_position, "END_OF_RIGHT_HOMOLOGY_ARM": right_hr_end_position}
+                primer_target_round_one[guide_rna[1]] = primers_for_each_degree_of_assymetry
                 gBlocks_without_BsaI_guideRNA_info[guide_rna[0]] = build
-                guide_rna_to_assembled_sequence_dict[guide_rna[1]] = [left_hr, right_hr]
 
 
     ranked_guideRNAs = prioritize_guide_RNAs(first_filter_passed_guideRNAs, "%s/%s/%s/Off_Targets" % (guide_rna_results_storage_folder, organism, gene), primer_guideRNA_optimal_info)
@@ -555,60 +323,8 @@ def obtaingBlockCandidatesWithoutBsaISite(organism, gene, gene_table_for_organis
 
             build = gBlocks_without_BsaI_guideRNA_info[guide_rna[0]]
             output.append(build)
+            
 
-            homology_arms = guide_rna_to_assembled_sequence_dict[guide_rna[1]]
-            left_homology_arm = homology_arms_guideRNA_info[guide_rna[0]]["LEFT_HOMOLOGY_ARM"]
-            right_homology_arm = homology_arms_guideRNA_info[guide_rna[0]]["RIGHT_HOMOLOGY_ARM"]
-
-            end_of_left_primer_region = primer_guideRNA_optimal_info[guide_rna[0]]["END_OF_LEFT_PRIMER_REGION"]
-            length_of_left_primer_region = primer_guideRNA_optimal_info[guide_rna[0]]["LENGTH_OF_LEFT_PRIMER_REGION"]
-            start_of_left_primer_region = end_of_left_primer_region - length_of_left_primer_region + 1
-            end_of_left_primer_region -= start_of_left_primer_region
-
-            start_of_right_primer_region = primer_guideRNA_optimal_info[guide_rna[0]]["START_OF_RIGHT_PRIMER_REGION"] - start_of_left_primer_region
-            length_of_right_primer_region = primer_guideRNA_optimal_info[guide_rna[0]]["LENGTH_OF_RIGHT_PRIMER_REGION"]
-
-            primer_build_info = primer_target_round_one[guide_rna[1]]
-
-            #amplicon = organism_fasta[primer_build_info[2]][primer_build_info[0][0]: primer_build_info[0][1]] + prefix + "TAA" + "CCTGCAGG" + organism_fasta[chromosome][primer_build_info[1][0]: primer_build_info[1][1]]
-            amplicon = "%s%s%s" % (
-                bsp.substring(organism_fasta[chromosome], end_of_left_primer_region, length_of_left_primer_region, left_endpoint = False),
-                build_real,
-                bsp.substring(organism_fasta[chromosome], start_of_right_primer_region, length_of_right_primer_region, left_endpoint = True)
-            )
-            left_primer_search_space_length = primer_build_info[3]
-
-            right_primer_start_position_search = primer_build_info[3] + len(prefix) + 8 + 100 + 100
-            right_primer_search_space_length = primer_build_info[4] - 100
-
-            location_of_detailed_primer_file = "Test Output Garbage Dump/Primer Results/Detailed Primer Results for Gene " + gene + " and guideRNA " + guide_rna[1] + ".csv"
-            #primers = obtainPrimers(amplicon, left_primer_search_space_length, right_primer_start_position_search, right_primer_search_space_length, location_of_detailed_primer_file)
-            primers = obtainPrimers(amplicon, length_of_left_primer_region, start_of_right_primer_region, length_of_right_primer_region, location_of_detailed_primer_file)
-
-            ## Conducting the SbFI_digest_calculations
-            SbFI_digest_calculations = {}
-
-            for i in range(len(primers)):
-                left_and_right_primer = primers[i]
-
-                left_primer_position = left_and_right_primer[0][2]
-                left_primer_length = left_and_right_primer[0][3]
-
-                right_primer_position = left_and_right_primer[1][2]
-                right_primer_length = left_and_right_primer[1][3]
-
-                base_pair_before_cut_on_sense_position = length_of_left_primer_region + len(left_homology_arm) + len(prefix) + 8
-
-                length_of_left_portion_of_SbFI_digest = base_pair_before_cut_on_sense_position - left_primer_position + 1
-                length_of_right_portion_of_SbFI_digest = right_primer_position - base_pair_before_cut_on_sense_position
-
-                max_length = max(length_of_left_portion_of_SbFI_digest, length_of_right_portion_of_SbFI_digest)
-                min_length = min(length_of_left_portion_of_SbFI_digest, length_of_right_portion_of_SbFI_digest)
-                gel_difference = log(max_length) / log(min_length)
-
-                SbFI_digest_calculations[i] = [length_of_left_portion_of_SbFI_digest, length_of_right_portion_of_SbFI_digest, gel_difference]
-
-            primer_target_final_round[build] = [amplicon, primers, SbFI_digest_calculations]
     print("Obtained gBlocks for knocking %s in %s" % (gene, organism))
     return [output, primer_target_final_round]
 
