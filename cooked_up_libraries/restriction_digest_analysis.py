@@ -105,6 +105,7 @@ def obtainPrimersForMeaningfulDigestAnalysis(chromosome_sequence, restriction_si
     end_position_of_right_primer_search_space = start_position_of_right_primer_search_space + primer_search_space_length - 1
 
     primers = []
+    amplicon = ""
     while (restriction_site_region_start_position - spacing_from_left_primer_search_space_to_restriction_region - primer_search_space_length >= 0) and (restriction_site_region_end_position + spacing_from_right_primer_search_space_to_restriction_region + primer_search_space_length < len(chromosome_sequence)) and (restriction_site_region_end_position - restriction_site_region_start_position + spacing_from_right_primer_search_space_to_restriction_region + spacing_from_left_primer_search_space_to_restriction_region + 2 * primer_search_space_length + 1 <= maximum_amplicon_length):
 
         amplicon_region = chromosome_sequence[start_position_of_left_primer_search_space: end_position_of_right_primer_search_space + 1]
@@ -118,6 +119,7 @@ def obtainPrimersForMeaningfulDigestAnalysis(chromosome_sequence, restriction_si
         primers = obtainPrimers(amplicon_region, left_primer_start_search_space_region, left_primer_search_space_length, right_primer_start_search_space_region, right_primer_search_space_length)
 
         if primers != []:
+            amplicon = amplicon_region
             break
 
         spacing_from_left_primer_search_space_to_restriction_region += left_primer_search_space_shift_rate
@@ -142,4 +144,6 @@ def obtainPrimersForMeaningfulDigestAnalysis(chromosome_sequence, restriction_si
 
         primer_information.append([left_primer_results, right_primer_results, [left_dna_cut_length, right_dna_cut_length]])
 
+    primer_information.append(amplicon)
+    
     return primer_information

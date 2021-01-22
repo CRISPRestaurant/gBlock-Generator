@@ -1,4 +1,5 @@
 import os
+import shutil
 from math import *
 from random import *
 import primer3
@@ -75,12 +76,13 @@ def prioritize_guide_RNAs(sequences, off_target_output_folder, primer_database):
         off_target_site_priority = obtainOffTargetSitePriority(off_target_output_folder, sequence[0])
         primer_availability_priority = 0
 
-        primer_results = primer_database[sequence[0]]
+        primer_results = primer_database[sequence[1]]
 
         for degree_of_asymmetry in primer_results.keys():
             primer_result = primer_results[degree_of_asymmetry]
+            for primer_pair_index in range(len(primer_result) - 1):
+                primer_pair = primer_result[primer_pair_index]
 
-            for primer_pair in primer_result:
                 max_bp_digest_length = max(primer_pair[2][0], primer_pair[2][1])
                 min_bp_digest_length = min(primer_pair[2][0], primer_pair[2][1])
 
@@ -178,7 +180,7 @@ def obtainPrimers(target, left_primer_length, right_primer_start, right_primer_l
 # Obtains HI-CRISPR gBlock that does not contain the BsaI endpoints and only contains the
 # left homology arm, stop codon, SbfI, right homology arm, and guideRNA
 # Also obtains optimal primer information to confirm edit has taken place using SbFI restriction digest and Gel Electrophoresis
-def obtaingBlockCandidatesWithoutBsaISite(organism, gene, gene_table_for_organism, guide_rna_results_storage_folder, chopchop_dir, online):
+def obtaingBlockCandidatesWithoutBsaISite(organism, gene, gene_table_for_organism, guide_rna_results_storage_folder, chopchop_dir, online, minimum_spacing_length, primer_search_space_length, primer_length, maximum_amplicon_length):
     output = []
 
     # Very crude processing of primer information
@@ -304,8 +306,7 @@ def obtaingBlockCandidatesWithoutBsaISite(organism, gene, gene_table_for_organis
                 primer_target_round_one[guide_rna[1]] = primers_for_each_degree_of_assymetry
                 gBlocks_without_BsaI_guideRNA_info[guide_rna[0]] = build
 
-
-    ranked_guideRNAs = prioritize_guide_RNAs(first_filter_passed_guideRNAs, "%s/%s/%s/Off_Targets" % (guide_rna_results_storage_folder, organism, gene), primer_guideRNA_optimal_info)
+    ranked_guideRNAs = prioritize_guide_RNAs(first_filter_passed_guideRNAs, "%s/%s/%s/Off_Targets" % (guide_rna_results_storage_folder, organism, gene), primer_target_round_one)
     ## END SECTION
 
     #print(first_filter_passed_guideRNAs)
@@ -313,6 +314,8 @@ def obtaingBlockCandidatesWithoutBsaISite(organism, gene, gene_table_for_organis
     #print(gBlocks_without_BsaI_guideRNA_info)
     #print(ranked_guideRNAs)
     # Chooses four highest ranked guideRNAs
+    primer_pairs_producing_optimal_difference_found = 0
+    total_primer_pairs_found = 0
     for i in range(0, 4):
         if i < len(ranked_guideRNAs):
             guide_rna = ranked_guideRNAs[i]
@@ -323,12 +326,76 @@ def obtaingBlockCandidatesWithoutBsaISite(organism, gene, gene_table_for_organis
 
             build = gBlocks_without_BsaI_guideRNA_info[guide_rna[0]]
             output.append(build)
-            
+
+            optimal_group_of_primers = []
+            max_bp_digest_length_score = -1
+
+            all_primers = primer_target_round_one[guide_rna[1]]
+
+            different_degree_of_assymetry_plots = {"Degree of Assymetry": [], "DNA Digest Base Pair Difference": [], "Primer Pair": []}
+
+            for degree_of_asymmetry in all_primers.keys():
+                total_base_pair_difference_score = 0
+                primer_information = all_primers[degree_of_asymmetry]
+
+                degree_of_asymmetry_column = different_degree_of_assymetry_plots["Degree of Assymetry"]
+                digest_base_pair_difference_column = different_degree_of_assymetry_plots["DNA Digest Base Pair Difference"]
+                primer_pair_column = different_degree_of_assymetry_plots["Primer Pair"]
+
+                for primer_index in range(len(primer_information) - 1):
+                    primer_pair = primer_information[primer_index]
+
+                    max_bp_digest_length = max(primer_pair[2][0], primer_pair[2][1])
+                    min_bp_digest_length = min(primer_pair[2][0], primer_pair[2][1])
+
+                    degree_of_asymmetry_column.append(degree_of_asymmetry)
+                    digest_base_pair_difference_column.append(max_bp_digest_length - min_bp_digest_length)
+                    primer_pair_column.append(primer_index + 1)
+
+                    total_base_pair_difference_score += pow(max_bp_digest_length - min_bp_digest_length, 4)
+
+                    if max_bp_digest_length - min_bp_digest_length >= 40:
+                        primer_pairs_producing_optimal_difference_found += 1
+
+                    total_primer_pairs_found += 1
+
+                different_degree_of_assymetry_plots["Degree of Assymetry"] = degree_of_asymmetry_column
+                different_degree_of_assymetry_plots["DNA Digest Base Pair Difference"] = digest_base_pair_difference_column
+                different_degree_of_assymetry_plots["Primer Pair"] = primer_pair_column
+
+                if total_base_pair_difference_score > max_bp_digest_length_score:
+                    optimal_group_of_primers = primer_information
+                    max_bp_digest_length_score = total_base_pair_difference_score
+
+            gene_degree_of_assymetry_folder = "Test Output Garbage Dump/Degree of Assymetry Charts/%s" % (gene)
+            guide_degree_of_assymetry_folder = "Test Output Garbage Dump/Degree of Assymetry Charts/%s/%s" % (gene, guide_rna[0])
+
+            if not os.path.isdir(guide_degree_of_assymetry_folder):
+                os.makedirs(guide_degree_of_assymetry_folder)
+
+            degree_of_asymmetry_plot = pd.DataFrame(different_degree_of_assymetry_plots, columns = ["Degree of Assymetry", "DNA Digest Base Pair Difference", "Primer Pair"])
+            sns.set_theme(style = "whitegrid")
+
+            degree_of_asymmetry_graph = sns.barplot(x = "Degree of Assymetry", y = "DNA Digest Base Pair Difference", hue = "Primer Pair", data = degree_of_asymmetry_plot)
+            degree_of_asymmetry_graph.set_title("Guide #%s of %s Gene Knockout (MSL: %s, LaRPSSL: %s, PL: %s, MAL: %s)" % (guide_rna[0], gene, minimum_spacing_length, primer_search_space_length, primer_length, maximum_amplicon_length))
+
+            degree_of_asymmetry_figure = degree_of_asymmetry_graph.get_figure()
+            degree_of_asymmetry_figure.savefig("%s/MSL=%s,LaRPSSL=%s,PL=%s,MAL=%s.png" % (guide_degree_of_assymetry_folder, minimum_spacing_length, primer_search_space_length, primer_length, maximum_amplicon_length), bbox_inches='tight')
+            plt.clf()
+            #plt.show()
+
+            #end_program = input("End Program?\n")
+
+            #if end_program == "y":
+            #    exit()
+
+            primer_target_final_round[build] = optimal_group_of_primers
+
 
     print("Obtained gBlocks for knocking %s in %s" % (gene, organism))
-    return [output, primer_target_final_round]
+    return [output, primer_target_final_round, primer_pairs_producing_optimal_difference_found, total_primer_pairs_found]
 
-def obtaingBlocks(organism, gene_list, plasmid, gene_table_for_organism, guide_rna_results_storage_folder, chopchop_dir, online):
+def obtaingBlocks(organism, gene_list, plasmid, gene_table_for_organism, guide_rna_results_storage_folder, chopchop_dir, online, minimum_spacing_length = 20, primer_search_space_length = 200, primer_length = 20, maximum_amplicon_length = 1000):
     # Obtains two sets of four nucleotides needed to glue the ends of the gBlock onto the plasmid
     start_end_BsaI_sites = restriction_enzymes.findBsaISites(plasmid)
     # Pair of start and end nucleotides for BsaI ligation in order of gBlock
@@ -370,12 +437,17 @@ def obtaingBlocks(organism, gene_list, plasmid, gene_table_for_organism, guide_r
 
     gBlocks = []
     associated_primers = {}
+    primer_viability_for_each_gene = {}
 
     counter = 1
     for i in range(len(gene_list)):
-        gBlocks_raw = obtaingBlockCandidatesWithoutBsaISite(organism, gene_list[i], gene_table_for_organism, guide_rna_results_storage_folder, chopchop_dir, online)
+        gBlocks_raw = obtaingBlockCandidatesWithoutBsaISite(organism, gene_list[i], gene_table_for_organism, guide_rna_results_storage_folder, chopchop_dir, online, minimum_spacing_length, primer_search_space_length, primer_length, maximum_amplicon_length)
         gBlocks_without_BsaI = gBlocks_raw[0]
         primer_output = gBlocks_raw[1]
+        primer_viability = 0
+
+        if gBlocks_raw[3] != 0:
+            primer_viability = gBlocks_raw[2] / gBlocks_raw[3]
 
         BsaI_nucleotides = BsaI_four_nucleotides_ordered[i]
         BsaI_arm_length = BsaI_arm_lengths[i]
@@ -411,109 +483,169 @@ def obtaingBlocks(organism, gene_list, plasmid, gene_table_for_organism, guide_r
 
         gBlocks_for_gene.insert(0, gene_list[i])
         gBlocks.append(gBlocks_for_gene)
-    return [gBlocks, associated_primers]
+
+        primer_viability_for_each_gene[gene_list[i]] = primer_viability
+
+    return [gBlocks, associated_primers, primer_viability_for_each_gene]
 
 start_time = time.time()
 
 organism = "sacCer3"
 gene = "YBL011W"
 gene_table_for_organism = gene_table.obtainGeneTableInfo(organism)
-print(len(gene_table_for_organism.keys()))
 plasmid = "pCRCT"
 
-gene_list = list(gene_table_for_organism.keys())[0:100]
-gBlocks_and_primers = obtaingBlocks(organism, gene_list, plasmid, gene_table_for_organism, "GuideRNA_Archives", "chopchop", False)
-file_name = "The Mega 100 Gene Knockout"
+for subfolders in os.walk("Test Output Garbage Dump/Degree of Assymetry Charts"):
+    subfolder_location = subfolders[0]
 
-file = open("Test Output Garbage Dump/HI-CRISPR Knockout/" + file_name + ".txt", "w")
+    shutil.rmtree(subfolder_location)
 
-primer_wb = pyxl.Workbook()
-ws = primer_wb[primer_wb.sheetnames[0]]
+for subfolders in os.walk("Test Output Garbage Dump/Primer Viability Charts"):
+    subfolder_location = subfolders[0]
 
-# Assigns A1 to "Name"
-wcell_name = ws.cell(1, 1)
-wcell_name.value = "Name"
+    shutil.rmtree(subfolder_location)
 
-# Assigns B1 to "Sequence"
-wcell_sequence = ws.cell(1, 2)
-wcell_sequence.value = "Sequence"
+primer_length = 20
+maximum_amplicon_length = 1000
 
-# Assigns C1 to "Scale"
-wcell_scale = ws.cell(1, 3)
-wcell_scale.value = "Scale"
+gene_list = list(gene_table_for_organism.keys())[0:20]
+progress = 0
+for minimum_spacing_length in range(20, 41, 1):
+    for primer_search_space_length in range(100, 220, 20):
+        minimum_spacing_folder = "Test Output Garbage Dump/Primer Viability Charts/MSL=%s" % (minimum_spacing_length)
+        primer_search_space_folder = "Test Output Garbage Dump/Primer Viability Charts/MSL=%s/LaRPSSL=%s" % (minimum_spacing_length, primer_search_space_length)
 
-# Assigns D1 to "Purification"
-wcell_purification = ws.cell(1, 4)
-wcell_purification.value = "Purification"
+        if not os.path.isdir(primer_search_space_folder):
+            os.makedirs(primer_search_space_folder)
 
-gene_primers_added_to_excel = []
-# Outputs all the gBlock generation and primer verifiers into different
-# text files and excel documents
+        gBlocks_and_primers = obtaingBlocks(organism, gene_list, plasmid, gene_table_for_organism, "GuideRNA_Archives", "chopchop", False, minimum_spacing_length, primer_search_space_length, primer_length, maximum_amplicon_length)
+        primer_viabilities_by_gene = gBlocks_and_primers[2]
+
+        sorted_primer_viabilities = sorted(primer_viabilities_by_gene.items(), key = lambda x: x[1], reverse = True)
+
+        primer_viability_sorted_dict = {"Gene": [], "% of Primers Producing Digest bp Difference > 40": []}
+
+        for gene in sorted_primer_viabilities:
+            gene_viability_list = primer_viability_sorted_dict["Gene"]
+            percentage = primer_viability_sorted_dict["% of Primers Producing Digest bp Difference > 40"]
+
+            gene_viability_list.append(gene[0])
+            percentage.append(gene[1])
+
+        primer_viability_dataframe = pd.DataFrame(primer_viability_sorted_dict, columns = ["Gene", "% of Primers Producing Digest bp Difference > 40"])
+        sns.set_theme(style = "whitegrid")
+
+        primer_viability_graph = sns.barplot(x = "Gene", y = "% of Primers Producing Digest bp Difference > 40", data = primer_viability_dataframe)
+        primer_viability_graph.set_title("MSL: %s, LaRPSSL: %s, PL: %s, MAL: %s" % (minimum_spacing_length, primer_search_space_length, primer_length, maximum_amplicon_length))
+        primer_viability_graph.set_xticklabels(primer_viability_graph.get_xticklabels(), rotation = 90)
+
+        primer_viability_figure = primer_viability_graph.get_figure()
+        primer_viability_figure.savefig("%s/MSL=%s,LaRPSSL=%s,PL=%s,MAL=%s.png" % (primer_search_space_folder, minimum_spacing_length, primer_search_space_length, primer_length, maximum_amplicon_length), bbox_inches='tight')
+        plt.clf()
+
+        progress += 1
+        print("%s percent progress" % ((progress / 120) * 100))
+
+
+# This section is on temporary pause as it is the final output of primers into the IDT form
+# file_name = "The Mega 100 Gene Knockout"
 #
-# Look at Test Output Garbage Dump/HI-CRISPR Knockout for gBlocks and corresponding primers and amplicons.
-for gene_position in range(len(gBlocks_and_primers[0])):
-    gene = gBlocks_and_primers[0][gene_position]
-    file.write(gene[0] + "\n\n")
-    for i in range(1, len(gene)):
-        file.write("gBlock #" + str(i) + "\n\n")
-        file.write(gene[i] + "\n\n")
-
-        primer_information = gBlocks_and_primers[1][gene[i]]
-        file.write(primer_information[0] + "\n\n")
-
-        primer_list = primer_information[1]
-        SbFI_digest_calculations = primer_information[2]
-        if len(primer_list) == 0:
-            print("%s has no primers and sucks butt!" % (gene))
-        for j in range(len(primer_list)):
-            file.write("Left Primer #" + str(j + 1) + ": " + primer_list[j][0][0] + "\n")
-            file.write("Left Primer #" + str(j + 1) + " Melting Temperature: " + str(primer_list[j][0][1]) + "\n\n")
-
-            file.write("Right Primer #" + str(j + 1) + ": " + primer_list[j][1][0] + " (search for " + dna_properties.getAntiSenseStrand(primer_list[j][1][0]) + ")" + "\n")
-            file.write("Right Primer #" + str(j + 1) + ": " + str(primer_list[j][1][1]) + "\n\n")
-
-            file.write("5' Sense Restriction Digest End Length: %s\n" % (SbFI_digest_calculations[j][0]))
-            file.write("3' Sense Restriction Digest End Length: %s\n" % (SbFI_digest_calculations[j][1]))
-            file.write("log(larger DNA digest bp) / log(smaller DNA digest bp): %s\n\n" % (SbFI_digest_calculations[j][2]))
-
-            if j == 0 and not gene[0] in gene_primers_added_to_excel:
-                left_primer_row_num = 2 * gene_position + 2
-                right_primer_row_num = 2 * gene_position + 3
-
-                # Assigns left primer row values
-
-                wcell_lp_name = ws.cell(left_primer_row_num, 1)
-                wcell_lp_name.value = gene[0] + "_LEFT_PRIMER"
-
-                wcell_lp_sequence = ws.cell(left_primer_row_num, 2)
-                wcell_lp_sequence.value = primer_list[j][0][0]
-
-                wcell_lp_scale = ws.cell(left_primer_row_num, 3)
-                wcell_lp_scale.value = "25nm"
-
-                wcell_lp_purification = ws.cell(left_primer_row_num, 4)
-                wcell_lp_purification.value = "STD"
-
-                # Assigns right primer row values
-
-                wcell_rp_name = ws.cell(right_primer_row_num, 1)
-                wcell_rp_name.value = gene[0] + "_RIGHT_PRIMER"
-
-                wcell_rp_sequence = ws.cell(right_primer_row_num, 2)
-                wcell_rp_sequence.value = primer_list[j][1][0]
-
-                wcell_rp_scale = ws.cell(right_primer_row_num, 3)
-                wcell_rp_scale.value = "25nm"
-
-                wcell_rp_purification = ws.cell(right_primer_row_num, 4)
-                wcell_rp_purification.value = "STD"
-
-                gene_primers_added_to_excel.append(gene[0])
-
-    file.write("\n\n")
-
-primer_wb.save("Test Output Garbage Dump/HI-CRISPR Knockout/" + file_name + ".xlsx")
-file.close()
+# file = open("Test Output Garbage Dump/HI-CRISPR Knockout/" + file_name + ".txt", "w")
+#
+# primer_wb = pyxl.Workbook()
+# ws = primer_wb[primer_wb.sheetnames[0]]
+#
+# # Assigns A1 to "Name"
+# wcell_name = ws.cell(1, 1)
+# wcell_name.value = "Name"
+#
+# # Assigns B1 to "Sequence"
+# wcell_sequence = ws.cell(1, 2)
+# wcell_sequence.value = "Sequence"
+#
+# # Assigns C1 to "Scale"
+# wcell_scale = ws.cell(1, 3)
+# wcell_scale.value = "Scale"
+#
+# # Assigns D1 to "Purification"
+# wcell_purification = ws.cell(1, 4)
+# wcell_purification.value = "Purification"
+#
+# gene_primers_added_to_excel = []
+# # Outputs all the gBlock generation and primer verifiers into different
+# # text files and excel documents
+# #
+# # Look at Test Output Garbage Dump/HI-CRISPR Knockout for gBlocks and corresponding primers and amplicons.
+# for gene_position in range(len(gBlocks_and_primers[0])):
+#     gene = gBlocks_and_primers[0][gene_position]
+#     file.write(gene[0] + "\n\n")
+#     for i in range(1, len(gene)):
+#         file.write("gBlock #" + str(i) + "\n\n")
+#         file.write(gene[i] + "\n\n")
+#
+#         primer_information = gBlocks_and_primers[1][gene[i]]
+#         print(primer_information)
+#
+#         file.write(primer_information[-1] + "\n\n")
+#
+#         primer_list = primer_information[0: len(primer_information) - 1]
+#
+#         if len(primer_list) == 0:
+#             print("%s has no primers and sucks butt!" % (gene))
+#         for j in range(len(primer_list)):
+#             file.write("Left Primer #" + str(j + 1) + ": " + primer_list[j][0][0] + "\n")
+#             file.write("Left Primer #" + str(j + 1) + " Melting Temperature: " + str(primer_list[j][0][1]) + "\n\n")
+#
+#             file.write("Right Primer #" + str(j + 1) + ": " + primer_list[j][1][0] + " (search for " + dna_properties.getAntiSenseStrand(primer_list[j][1][0]) + ")" + "\n")
+#             file.write("Right Primer #" + str(j + 1) + ": " + str(primer_list[j][1][1]) + "\n\n")
+#
+#             file.write("5' Sense Restriction Digest End Length: %s\n" % (primer_list[j][2][0]))
+#             file.write("3' Sense Restriction Digest End Length: %s\n" % (primer_list[j][2][1]))
+#
+#             max_bp_digest_length = max(primer_list[j][2][0], primer_list[j][2][1])
+#             min_bp_digest_length = min(primer_list[j][2][0], primer_list[j][2][1])
+#
+#             log_difference = log(max_bp_digest_length) / log(min_bp_digest_length)
+#             file.write("log(larger DNA digest bp) / log(smaller DNA digest bp): %s\n\n" % (log_difference))
+#
+#             if j == 0 and not gene[0] in gene_primers_added_to_excel:
+#                 left_primer_row_num = 2 * gene_position + 2
+#                 right_primer_row_num = 2 * gene_position + 3
+#
+#                 # Assigns left primer row values
+#
+#                 wcell_lp_name = ws.cell(left_primer_row_num, 1)
+#                 wcell_lp_name.value = gene[0] + "_LEFT_PRIMER"
+#
+#                 wcell_lp_sequence = ws.cell(left_primer_row_num, 2)
+#                 wcell_lp_sequence.value = primer_list[j][0][0]
+#
+#                 wcell_lp_scale = ws.cell(left_primer_row_num, 3)
+#                 wcell_lp_scale.value = "25nm"
+#
+#                 wcell_lp_purification = ws.cell(left_primer_row_num, 4)
+#                 wcell_lp_purification.value = "STD"
+#
+#                 # Assigns right primer row values
+#
+#                 wcell_rp_name = ws.cell(right_primer_row_num, 1)
+#                 wcell_rp_name.value = gene[0] + "_RIGHT_PRIMER"
+#
+#                 wcell_rp_sequence = ws.cell(right_primer_row_num, 2)
+#                 wcell_rp_sequence.value = primer_list[j][1][0]
+#
+#                 wcell_rp_scale = ws.cell(right_primer_row_num, 3)
+#                 wcell_rp_scale.value = "25nm"
+#
+#                 wcell_rp_purification = ws.cell(right_primer_row_num, 4)
+#                 wcell_rp_purification.value = "STD"
+#
+#                 gene_primers_added_to_excel.append(gene[0])
+#
+#     file.write("\n\n")
+#
+# primer_wb.save("Test Output Garbage Dump/HI-CRISPR Knockout/" + file_name + ".xlsx")
+# file.close()
 
 end_time = time.time()
 
